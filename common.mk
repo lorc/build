@@ -192,7 +192,8 @@ else
 BUILDROOT_TOOLCHAIN=toolchain-aarch$(COMPILE_NS_USER)-legacy
 endif
 BUILDROOT_GETTY_PORT ?= \
-	$(if $(CFG_NW_CONSOLE_UART),ttyAMA$(CFG_NW_CONSOLE_UART),ttyAMA0)
+	$(if $(CFG_VIRTUALIZATION), hvc0,  \
+		$(if $(CFG_NW_CONSOLE_UART),ttyAMA$(CFG_NW_CONSOLE_UART),ttyAMA0))
 .PHONY: buildroot
 buildroot: optee-os
 	@mkdir -p ../out-br
@@ -225,6 +226,23 @@ ifeq ($(CFG_TEE_BENCHMARK),y)
 endif
 	@echo "BR2_PACKAGE_OPENSSL=y" >> ../out-br/extra.conf
 	@echo "BR2_PACKAGE_LIBOPENSSL=y" >> ../out-br/extra.conf
+ifeq ($(CFG_VIRTUALIZATION),y)
+	@echo "BR2_PACKAGE_XEN_LORC_OPTEE=y" >> ../out-br/extra.conf
+	@echo "BR2_PACKAGE_XEN_LORC_OPTEE_TOOLS=y" >> ../out-br/extra.conf
+	@echo "BR2_PACKAGE_XEN_LORC_OPTEE_HYPERVISOR=y" >> ../out-br/extra.conf
+	@echo "BR2_ROOTFS_OVERLAY=\"$(BUILD_PATH)/br-qemu-xen-overlay\"" >> ../out-br/extra.conf
+	@echo "BR2_TARGET_ROOTFS_EXT2=y" >> ../out-br/extra.conf
+	@echo "BR2_TARGET_ROOTFS_EXT2_4=y" >> ../out-br/extra.conf
+# Xentools require bash
+	@echo "BR2_PACKAGE_BASH=y" >> ../out-br/extra.conf
+	@echo "BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y" >> ../out-br/extra.conf
+# ... and stat
+	@echo "BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES=\"$(BUILD_PATH)/br-ext/busybox.extra\""  >> ../out-br/extra.conf
+# ... and perl
+	@echo "BR2_PACKAGE_PERL=y" >> ../out-br/extra.conf
+# ... and with perl it does not fit into 60M of standard rootfs size
+	@echo "BR2_TARGET_ROOTFS_EXT2_SIZE=\"128M\"" >> ../out-br/extra.conf
+endif
 	@(cd .. && python build/br-ext/scripts/make_def_config.py \
 		--br buildroot --out out-br --br-ext build/br-ext \
 		--top-dir "$(ROOT)" \
